@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"io"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -23,7 +22,6 @@ type parserState int
 const (
 	requestStateInitialized parserState = iota
 	requestStateParsingHeaders
-	parsingBody
 	requestStateDone
 )
 
@@ -136,39 +134,17 @@ func (r *Request) parseSingle(data []byte) (int, error) {
 		return consumed, nil
 
 	case requestStateParsingHeaders:
-		consumed, doneRequest, err := r.Headers.Parse(data)
+		consumed, done, err := r.Headers.Parse(data)
 		if err != nil {
 			return consumed, err
 		}
 
-		if doneRequest {
-			r.state = parsingBody
+		if done {
+			r.state = requestStateDone
 		}
+
 		return consumed, nil
 
-	case parsingBody:
-		contentLength, exists := r.Headers.Get("Content-Length")
-		if !exists {
-			r.state = requestStateDone
-			return len(data), nil
-		}
-
-		contentLengthValue, err := strconv.Atoi(contentLength)
-		if err != nil {
-			return 0, errors.New("invalid Content-Length")
-		}
-
-		r.Body = append(r.Body, data...)
-
-		if len(r.Body) > contentLengthValue {
-			return len(data), errors.New("body longer than Content-Length")
-		}
-
-		if len(r.Body) == contentLengthValue {
-			r.state = requestStateDone
-		}
-
-		return len(data), nil
 	case requestStateDone:
 		return 0, errors.New("cannot parse request in done state")
 

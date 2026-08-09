@@ -41,6 +41,7 @@ func main() {
 		}
 
 		fmt.Println("Body:")
+		fmt.Print(string(req.Body))
 		conn.Close()
 		fmt.Println("connection closed")
 	}
