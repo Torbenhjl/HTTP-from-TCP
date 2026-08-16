@@ -32,24 +32,25 @@ type RequestLine struct {
 }
 
 func RequestFromReader(reader io.Reader) (*Request, error) {
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
-
 	r := &Request{
 		Headers: headers.NewHeaders(),
 		state:   requestStateInitialized,
 	}
 
-	_, err = r.parse(data)
-	if err != nil {
-		return nil, err
+	buf := make([]byte, 8)
+
+	for r.state != requestStateDone {
+		n, err := reader.Read(buf)
+		if err != nil {
+			return nil, err
+		}
+
+		_, err = r.Parse(buf[:n])
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	if r.state != requestStateDone {
-		return nil, errors.New("incomplete request")
-	}
 	return r, nil
 }
 
@@ -96,7 +97,7 @@ func parseRequestLine(data []byte) (RequestLine, int, error) {
 	}, consumed, nil
 }
 
-func (r *Request) parse(data []byte) (int, error) {
+func (r *Request) Parse(data []byte) (int, error) {
 	totalBytesParsed := 0
 
 	for r.state != requestStateDone {
